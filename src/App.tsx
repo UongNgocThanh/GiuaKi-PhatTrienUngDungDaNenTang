@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Share } from "@capacitor/share";
 import { LocalNotifications } from "@capacitor/local-notifications";
-import { Geolocation } from "@capacitor/geolocation";
+import { Geolocation, PermissionStatus } from "@capacitor/geolocation";
 import "./App.css";
 
 const App: React.FC = () => {
@@ -44,9 +44,19 @@ const App: React.FC = () => {
 
   const getLocation = async () => {
     try {
+      const permissionStatus: PermissionStatus = await Geolocation.checkPermissions();
+      if (permissionStatus.location !== "granted") {
+        const requestStatus = await Geolocation.requestPermissions();
+        if (requestStatus.location !== "granted") {
+          alert("Bạn chưa cấp quyền truy cập vị trí.");
+          return;
+        }
+      }
+
       const position = await Geolocation.getCurrentPosition();
       setLocation(`Vĩ độ: ${position.coords.latitude}, Kinh độ: ${position.coords.longitude}`);
     } catch (error) {
+      console.error("Lỗi khi lấy vị trí:", error);
       alert("Không thể lấy vị trí: " + (error as Error).message);
     }
   };
