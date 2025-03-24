@@ -1,58 +1,81 @@
-import { IonApp, IonRouterOutlet, IonSplitPane, setupIonicReact } from '@ionic/react';
-import { IonReactRouter } from '@ionic/react-router';
-import { Redirect, Route } from 'react-router-dom';
-import Menu from './components/Menu';
-import Page from './pages/Page';
-
-/* Core CSS required for Ionic components to work properly */
-import '@ionic/react/css/core.css';
-
-/* Basic CSS for apps built with Ionic */
-import '@ionic/react/css/normalize.css';
-import '@ionic/react/css/structure.css';
-import '@ionic/react/css/typography.css';
-
-/* Optional CSS utils that can be commented out */
-import '@ionic/react/css/padding.css';
-import '@ionic/react/css/float-elements.css';
-import '@ionic/react/css/text-alignment.css';
-import '@ionic/react/css/text-transformation.css';
-import '@ionic/react/css/flex-utils.css';
-import '@ionic/react/css/display.css';
-
-/**
- * Ionic Dark Mode
- * -----------------------------------------------------
- * For more info, please see:
- * https://ionicframework.com/docs/theming/dark-mode
- */
-
-/* import '@ionic/react/css/palettes/dark.always.css'; */
-/* import '@ionic/react/css/palettes/dark.class.css'; */
-import '@ionic/react/css/palettes/dark.system.css';
-
-/* Theme variables */
-import './theme/variables.css';
-
-setupIonicReact();
+import React, { useState } from "react";
+import { Share } from "@capacitor/share";
+import { LocalNotifications } from "@capacitor/local-notifications";
+import { Geolocation } from "@capacitor/geolocation";
+import "./App.css";
 
 const App: React.FC = () => {
+  const [celsius, setCelsius] = useState<string>("");
+  const [fahrenheit, setFahrenheit] = useState<string | null>(null);
+  const [location, setLocation] = useState<string | null>(null);
+
+  const convertTemperature = async () => {
+    const c = parseFloat(celsius);
+    if (isNaN(c)) {
+      alert("Vui lòng nhập nhiệt độ hợp lệ.");
+      return;
+    }
+    const f = (c * 9) / 5 + 32;
+    setFahrenheit(f.toFixed(2));
+
+    await LocalNotifications.schedule({
+      notifications: [
+        {
+          title: "Kết quả chuyển đổi",
+          body: `Nhiệt độ tương đương: ${f.toFixed(2)}°F`,
+          id: 1,
+          schedule: { at: new Date(Date.now() + 1000) },
+        },
+      ],
+    });
+  };
+
+  const shareTemperature = async () => {
+    if (fahrenheit === null) {
+      alert("Hãy chuyển đổi nhiệt độ trước khi chia sẻ.");
+      return;
+    }
+    await Share.share({
+      title: "Kết quả chuyển đổi nhiệt độ",
+      text: `Nhiệt độ ${celsius}°C tương đương ${fahrenheit}°F!`,
+      dialogTitle: "Chia sẻ kết quả",
+    });
+  };
+
+  const getLocation = async () => {
+    try {
+      const position = await Geolocation.getCurrentPosition();
+      setLocation(`Vĩ độ: ${position.coords.latitude}, Kinh độ: ${position.coords.longitude}`);
+    } catch (error) {
+      alert("Không thể lấy vị trí: " + (error as Error).message);
+    }
+  };
+
   return (
-    <IonApp>
-      <IonReactRouter>
-        <IonSplitPane contentId="main">
-          <Menu />
-          <IonRouterOutlet id="main">
-            <Route path="/" exact={true}>
-              <Redirect to="/folder/Inbox" />
-            </Route>
-            <Route path="/folder/:name" exact={true}>
-              <Page />
-            </Route>
-          </IonRouterOutlet>
-        </IonSplitPane>
-      </IonReactRouter>
-    </IonApp>
+    <div className="App">
+      <h1>Chuyển đổi nhiệt độ</h1>
+      <div className="input-section">
+        <input
+          type="number"
+          placeholder="Nhập nhiệt độ (°C)"
+          value={celsius}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCelsius(e.target.value)}
+        />
+        <button onClick={convertTemperature}>Chuyển đổi</button>
+      </div>
+
+      {fahrenheit !== null && (
+        <div className="result-section">
+          <p>{celsius}°C = {fahrenheit}°F</p>
+          <button onClick={shareTemperature}>Chia sẻ kết quả</button>
+        </div>
+      )}
+
+      <div className="location-section">
+        <button onClick={getLocation}>Lấy vị trí</button>
+        {location && <p>{location}</p>}
+      </div>
+    </div>
   );
 };
 
